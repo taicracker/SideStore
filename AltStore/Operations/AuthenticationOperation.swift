@@ -241,12 +241,11 @@ final class AuthenticationOperation: ResultOperation<(ALTTeam, ALTCertificate, A
                 }
                 
                 let activeAppsMinimumVersion = OperatingSystemVersion(majorVersion: 13, minorVersion: 3, patchVersion: 1)
-                if team.type == .free, !UserDefaults.standard.isAppLimitDisabled, ProcessInfo.processInfo.isOperatingSystemAtLeast(activeAppsMinimumVersion)
-                {
+                if team.type == .free, !UserDefaults.standard.isAppLimitDisabled, ProcessInfo().sparseRestorePatched {
                     UserDefaults.standard.activeAppsLimit = ALTActiveAppsLimit
-                }
-                else
-                {
+                } else if UserDefaults.standard.isAppLimitDisabled, !ProcessInfo().sparseRestorePatched {
+                    UserDefaults.standard.activeAppsLimit = 10
+                } else {
                     UserDefaults.standard.activeAppsLimit = nil
                 }
                 
