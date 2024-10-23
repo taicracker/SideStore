@@ -39,13 +39,8 @@ extension SettingsViewController
         
         static var allCases: [AppRefreshRow] {
             var c: [AppRefreshRow] = [.backgroundRefresh, .noIdleTimeout]
-            let low: OperatingSystemVersion = .init(majorVersion: 14, minorVersion: 0, patchVersion: 0)
-            let high: OperatingSystemVersion = .init(majorVersion: 18, minorVersion: 2, patchVersion: 0)
-            let current = ProcessInfo.processInfo.operatingSystemVersion
-            if UserDefaults.standard.isDebugModeEnabled, low <= current, current < high {
-                c.append(.disableAppLimit)
-            }
             guard #available(iOS 14, *) else { return c }
+            if !ProcessInfo().sparseRestorePatched { c.append(.disableAppLimit) }
             c.append(.addToSiri)
             return c
         }

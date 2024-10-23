@@ -10,6 +10,7 @@
 		03F06CD52942C27E001C4D68 /* Bundle+AltStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF1E314122A05D4C00370A3C /* Bundle+AltStore.swift */; };
 		0E05025A2BEC83C500879B5C /* OperatingSystemVersion+Comparable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E0502592BEC83C500879B5C /* OperatingSystemVersion+Comparable.swift */; };
 		0E05025C2BEC947000879B5C /* String+SideStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E05025B2BEC947000879B5C /* String+SideStore.swift */; };
+		0E13E5862CC8F55900E9C0DF /* ProcessInfo+SideStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E13E5852CC8F55900E9C0DF /* ProcessInfo+SideStore.swift */; };
 		0E1A1F912AE36A9700364CAD /* bytearray.c in Sources */ = {isa = PBXBuildFile; fileRef = 0E1A1F902AE36A9600364CAD /* bytearray.c */; };
 		0E764E172ADFF5740043DD4E /* AltBackup.ipa in Resources */ = {isa = PBXBuildFile; fileRef = 0E764E162ADFF5740043DD4E /* AltBackup.ipa */; };
 		0EA1665B2ADFE0D2003015C1 /* out-limd.c in Sources */ = {isa = PBXBuildFile; fileRef = 0EA166472ADFE0D1003015C1 /* out-limd.c */; };
@@ -509,6 +510,7 @@
 /* Begin PBXFileReference section */
 		0E0502592BEC83C500879B5C /* OperatingSystemVersion+Comparable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OperatingSystemVersion+Comparable.swift"; sourceTree = "<group>"; };
 		0E05025B2BEC947000879B5C /* String+SideStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+SideStore.swift"; sourceTree = "<group>"; };
+		0E13E5852CC8F55900E9C0DF /* ProcessInfo+SideStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProcessInfo+SideStore.swift"; sourceTree = "<group>"; };
 		0E1A1F902AE36A9600364CAD /* bytearray.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = bytearray.c; path = src/bytearray.c; sourceTree = "<group>"; };
 		0E764E162ADFF5740043DD4E /* AltBackup.ipa */ = {isa = PBXFileReference; lastKnownFileType = file; name = AltBackup.ipa; path = AltStore/Resources/AltBackup.ipa; sourceTree = SOURCE_ROOT; };
 		0EA166412ADFE0D1003015C1 /* jplist.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = jplist.c; path = Dependencies/libplist/src/jplist.c; sourceTree = SOURCE_ROOT; };
@@ -1678,6 +1680,7 @@
 				BFE00A1F2503097F00EB4D0C /* INInteraction+AltStore.swift */,
 				D57F2C9326E01BC700B9FA39 /* UIDevice+Vibration.swift */,
 				B376FE3D29258C8900E18883 /* OSLog+SideStore.swift */,
+				0E13E5852CC8F55900E9C0DF /* ProcessInfo+SideStore.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -2552,6 +2555,7 @@
 				BF770E5822BC3D0F002A40FE /* RefreshGroup.swift in Sources */,
 				19B9B7452845E6DF0076EF69 /* SelectTeamViewController.swift in Sources */,
 				99F87D0529D8B4E200B40039 /* minimuxer-helpers.swift in Sources */,
+				0E13E5862CC8F55900E9C0DF /* ProcessInfo+SideStore.swift in Sources */,
 				BF18B0F122E25DF9005C4CF5 /* ToastView.swift in Sources */,
 				BF3D649F22E7B24C00E9056B /* CollapsingTextView.swift in Sources */,
 				BF02419622F2199300129732 /* RefreshAttemptsViewController.swift in Sources */,
