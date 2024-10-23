@@ -85,8 +85,8 @@ extension ProcessInfo {
     }
     
     var sparseRestorePatched: Bool {
-        if operatingSystemVersion >= OperatingSystemVersion(majorVersion: 18, minorVersion: 1, patchVersion: 1) { true }
-        else if operatingSystemVersion <= OperatingSystemVersion(majorVersion: 18, minorVersion: 1, patchVersion: 0) { false }
+        if operatingSystemVersion < OperatingSystemVersion(majorVersion: 18, minorVersion: 1, patchVersion: 0) { false }
+        else if operatingSystemVersion > OperatingSystemVersion(majorVersion: 18, minorVersion: 1, patchVersion: 1) { true }
         else if operatingSystemVersion >= OperatingSystemVersion(majorVersion: 18, minorVersion: 1, patchVersion: 0),
                 let currentBuild = BuildVersion(operatingSystemBuild),
                 let targetBuild  = BuildVersion("22B5054e") {
