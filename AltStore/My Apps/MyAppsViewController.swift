@@ -994,7 +994,7 @@ private extension MyAppsViewController
             }
         }
                 
-        if UserDefaults.standard.activeAppsLimit != nil, #available(iOS 13, *)
+        if !UserDefaults.standard.isAppLimitDisabled && UserDefaults.standard.activeAppsLimit != nil, #available(iOS 13, *)
         {
             // UserDefaults.standard.activeAppsLimit is only non-nil on iOS 13.3.1 or later, so the #available check is just so we can use Combine.
             
@@ -1354,7 +1354,7 @@ extension MyAppsViewController
                 headerView.layoutMargins.left = self.view.layoutMargins.left
                 headerView.layoutMargins.right = self.view.layoutMargins.right
                 
-                if UserDefaults.standard.activeAppsLimit == nil
+                if UserDefaults.standard.activeAppsLimit == nil || UserDefaults.standard.isAppLimitDisabled
                 {
                     headerView.textLabel.text = NSLocalizedString("Installed", comment: "")
                 }
@@ -1753,7 +1753,7 @@ extension MyAppsViewController: UICollectionViewDragDelegate
             return []
             
         case .activeApps, .inactiveApps:
-            guard UserDefaults.standard.activeAppsLimit != nil else { return [] }
+            guard UserDefaults.standard.activeAppsLimit != nil && !UserDefaults.standard.isAppLimitDisabled else { return [] }
             guard let cell = collectionView.cellForItem(at: indexPath as IndexPath) as? InstalledAppCollectionViewCell else { return [] }
             
             let item = self.dataSource.item(at: indexPath)
@@ -1808,6 +1808,7 @@ extension MyAppsViewController: UICollectionViewDropDelegate
     func collectionView(_ collectionView: UICollectionView, dropSessionDidUpdate session: UIDropSession, withDestinationIndexPath destinationIndexPath: IndexPath?) -> UICollectionViewDropProposal
     {
         guard
+            !UserDefaults.standard.isAppLimitDisabled,
             let activeAppsLimit = UserDefaults.standard.activeAppsLimit,
             let installedApp = session.items.first?.localObject as? InstalledApp
         else { return UICollectionViewDropProposal(operation: .cancel) }

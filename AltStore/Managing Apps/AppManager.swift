@@ -240,7 +240,7 @@ extension AppManager
     
     func deactivateApps(for app: ALTApplication, presentingViewController: UIViewController, completion: @escaping (Result<Void, Error>) -> Void)
     {
-        guard let activeAppsLimit = UserDefaults.standard.activeAppsLimit else { return completion(.success(())) }
+        guard !UserDefaults.standard.isAppLimitDisabled, let activeAppsLimit = UserDefaults.standard.activeAppsLimit else { return completion(.success(())) }
         
         DispatchQueue.main.async {
             let activeApps = InstalledApp.fetchActiveApps(in: DatabaseManager.shared.viewContext)
