@@ -241,12 +241,11 @@ final class AuthenticationOperation: ResultOperation<(ALTTeam, ALTCertificate, A
                 }
                 
                 let activeAppsMinimumVersion = OperatingSystemVersion(majorVersion: 13, minorVersion: 3, patchVersion: 1)
-                if team.type == .free, ProcessInfo.processInfo.isOperatingSystemAtLeast(activeAppsMinimumVersion)
-                {
+                if team.type == .free, !UserDefaults.standard.isAppLimitDisabled, ProcessInfo().sparseRestorePatched {
                     UserDefaults.standard.activeAppsLimit = ALTActiveAppsLimit
-                }
-                else
-                {
+                } else if UserDefaults.standard.isAppLimitDisabled, !ProcessInfo().sparseRestorePatched {
+                    UserDefaults.standard.activeAppsLimit = 10
+                } else {
                     UserDefaults.standard.activeAppsLimit = nil
                 }
                 
@@ -490,7 +489,7 @@ private extension AuthenticationOperation
     {
         func requestCertificate()
         {
-            let machineName = "SideStore - " + UIDevice.current.name
+            let machineName: String = "SideStore - \(team.account.firstName)'s \(UIDevice.current.name)"
             ALTAppleAPI.shared.addCertificate(machineName: machineName, to: team, session: session) { (certificate, error) in
                 do
                 {
@@ -524,16 +523,50 @@ private extension AuthenticationOperation
         
         func replaceCertificate(from certificates: [ALTCertificate])
         {
-            guard let certificate = certificates.first(where: { $0.machineName?.starts(with: "SideStore") == true }) ?? certificates.first else { return completionHandler(.failure(OperationError.notAuthenticated)) }
+            let ourCertificates = certificates.filter { a in
+                a.machineName?.starts(with: "SideStore") == true || a.machineName?.starts(with: "AltStore") == true
+            }
             
-            ALTAppleAPI.shared.revoke(certificate, for: team, session: session) { (success, error) in
-                if let error = error, !success
+            if ourCertificates.isEmpty {
+                return requestCertificate()
+            }
+            
+            // We don't have private keys for any of the certificates,
+            // so we need to revoke one and create a new one.
+            var certsText = ""
+            for certificate in ourCertificates {
+                if let name = certificate.machineName {
+                    certsText.append("\(name)\n")
+                }
+            }
+            
+            let alertController = UIAlertController(title: NSLocalizedString("Would you like to revoke your previous certificates?\n\(certsText)", comment: ""), message: nil, preferredStyle: .alert)
+            
+            let noAction = UIAlertAction(title: NSLocalizedString("No", comment: ""), style: .default) { (action) in
+                requestCertificate()
+            }
+            let yesAction = UIAlertAction(title: NSLocalizedString("Yes", comment: ""), style: .default) { (action) in
+                for certificate in ourCertificates {
+                    ALTAppleAPI.shared.revoke(certificate, for: team, session: session) { (success, error) in
+                        if let error = error, !success
+                        {
+                            completionHandler(.failure(error))
+                        }
+                    }
+                }
+                requestCertificate()
+            }
+            alertController.addAction(noAction)
+            alertController.addAction(yesAction)
+            
+            DispatchQueue.main.async {
+                if self.navigationController.presentingViewController != nil
                 {
-                    completionHandler(.failure(error))
+                    self.navigationController.present(alertController, animated: true, completion: nil)
                 }
                 else
                 {
-                    requestCertificate()
+                    self.presentingViewController?.present(alertController, animated: true, completion: nil)
                 }
             }
         }
@@ -581,8 +614,6 @@ private extension AuthenticationOperation
                 }
                 else
                 {
-                    // We don't have private keys for any of the certificates,
-                    // so we need to revoke one and create a new one.
                     replaceCertificate(from: certificates)
                 }
             }

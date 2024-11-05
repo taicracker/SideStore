@@ -10,10 +10,10 @@ import Foundation
 import AuthenticationServices
 import CoreData
 
-private let clientID = "ZMx0EGUWe4TVWYXNZZwK_fbIK5jHFVWoUf1Qb-sqNXmT-YzAGwDPxxq7ak3_W5Q2"
-private let clientSecret = "1hktsZB89QyN69cB4R0tu55R4TCPQGXxvebYUUh7Y-5TLSnRswuxs6OUjdJ74IJt"
+private let clientID = "my4hpHHG4iVRme6QALnQGlhSBQiKdB_AinrVgPpIpiC-xiHstTYiLKO5vfariFo1"
+private let clientSecret = "Zow0ggt9YgwIyd4DVLoO9Z02KuuIXW44xhx4lfL27x2u-_u4FE4rYR48bEKREPS5"
 
-private let campaignID = "2863968"
+private let campaignID = "12794837"
 
 extension PatreonAPI
 {

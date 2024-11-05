@@ -32,13 +32,17 @@ extension SettingsViewController
     {
         case backgroundRefresh
         case noIdleTimeout
+        case disableAppLimit
         
         @available(iOS 14, *)
         case addToSiri
         
         static var allCases: [AppRefreshRow] {
-            guard #available(iOS 14, *) else { return [.backgroundRefresh, .noIdleTimeout] }
-            return [.backgroundRefresh, .noIdleTimeout, .addToSiri]
+            var c: [AppRefreshRow] = [.backgroundRefresh, .noIdleTimeout]
+            guard #available(iOS 14, *) else { return c }
+            if !ProcessInfo().sparseRestorePatched { c.append(.disableAppLimit) }
+            c.append(.addToSiri)
+            return c
         }
     }
     
@@ -79,6 +83,7 @@ final class SettingsViewController: UITableViewController
     
     @IBOutlet private var backgroundRefreshSwitch: UISwitch!
     @IBOutlet private var noIdleTimeoutSwitch: UISwitch!
+    @IBOutlet private var disableAppLimitSwitch: UISwitch!
     
     @IBOutlet private var refreshSideJITServer: UILabel!
     
@@ -190,6 +195,7 @@ private extension SettingsViewController
         
         self.backgroundRefreshSwitch.isOn = UserDefaults.standard.isBackgroundRefreshEnabled
         self.noIdleTimeoutSwitch.isOn = UserDefaults.standard.isIdleTimeoutDisableEnabled
+        self.disableAppLimitSwitch.isOn = UserDefaults.standard.isAppLimitDisabled
         
         if self.isViewLoaded
         {
@@ -315,6 +321,10 @@ private extension SettingsViewController
         //Fix crash on iPad
         alertController.popoverPresentationController?.barButtonItem = sender
         self.present(alertController, animated: true, completion: nil)
+    }
+    
+    @IBAction func toggleDisableAppLimit(_ sender: UISwitch) {
+        UserDefaults.standard.isAppLimitDisabled = sender.isOn
     }
     
     @IBAction func toggleIsBackgroundRefreshEnabled(_ sender: UISwitch)
@@ -541,7 +551,7 @@ extension SettingsViewController
         switch section
         {
         case .signIn where self.activeTeam != nil: return 1.0
-        case .account where self.activeTeam == nil: return 1.0            
+        case .account where self.activeTeam == nil: return 1.0
         case .signIn, .patreon, .appRefresh:
             let height = self.preferredHeight(for: self.prototypeHeaderFooterView, in: section, isHeader: false)
             return height
@@ -566,6 +576,7 @@ extension SettingsViewController
             {
             case .backgroundRefresh: break
             case .noIdleTimeout: break
+            case .disableAppLimit: break
             case .addToSiri:
                 guard #available(iOS 14, *) else { return }
                 self.addRefreshAppsShortcut()
@@ -587,35 +598,102 @@ extension SettingsViewController
             switch row
             {
             case .sendFeedback:
-                if MFMailComposeViewController.canSendMail()
-                {
-                    let mailViewController = MFMailComposeViewController()
-                    mailViewController.mailComposeDelegate = self
-                    mailViewController.setToRecipients(["support@sidestore.io"])
-                    
-                    if let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-                    {
-                        mailViewController.setSubject("SideStore Beta \(version) Feedback")
+                let alertController = UIAlertController(title: "Send Feedback", message: "Choose a method to send feedback:", preferredStyle: .actionSheet)
+                
+                // Option 1: GitHub
+                alertController.addAction(UIAlertAction(title: "GitHub", style: .default) { _ in
+                    if let githubURL = URL(string: "https://github.com/SideStore/SideStore/issues") {
+                        let safariViewController = SFSafariViewController(url: githubURL)
+                        safariViewController.preferredControlTintColor = .altPrimary
+                        self.present(safariViewController, animated: true, completion: nil)
                     }
-                    else
-                    {
-                        mailViewController.setSubject("SideStore Beta Feedback")
+                })
+                
+                // Option 2: Discord
+                alertController.addAction(UIAlertAction(title: "Discord", style: .default) { _ in
+                    if let discordURL = URL(string: "https://discord.gg/sidestore-949183273383395328") {
+                        let safariViewController = SFSafariViewController(url: discordURL)
+                        safariViewController.preferredControlTintColor = .altPrimary
+                        self.present(safariViewController, animated: true, completion: nil)
                     }
-                    
-                    self.present(mailViewController, animated: true, completion: nil)
+                })
+                
+                // Option 3: Mail
+//                alertController.addAction(UIAlertAction(title: "Send Email", style: .default) { _ in
+//                    if MFMailComposeViewController.canSendMail() {
+//                        let mailViewController = MFMailComposeViewController()
+//                        mailViewController.mailComposeDelegate = self
+//                        mailViewController.setToRecipients(["support@sidestore.io"])
+//
+//                        if let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String {
+//                            mailViewController.setSubject("SideStore Beta \(version) Feedback")
+//                        } else {
+//                            mailViewController.setSubject("SideStore Beta Feedback")
+//                        }
+//
+//                       self.present(mailViewController, animated: true, completion: nil)
+//                  } else {
+//                      let toastView = ToastView(text: NSLocalizedString("Cannot Send Mail", comment: ""), detailText: nil)
+//                      toastView.show(in: self)
+//                }
+//            })
+                
+                // Cancel action
+                alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+                
+                // For iPad: Set the source view if presenting on iPad to avoid crashes
+                if let popoverController = alertController.popoverPresentationController {
+                    popoverController.sourceView = self.view
+                    popoverController.sourceRect = self.view.bounds
                 }
-                else
-                {
-                    let toastView = ToastView(text: NSLocalizedString("Cannot Send Mail", comment: ""), detailText: nil)
-                    toastView.show(in: self)
-                }
+                
+                // Present the action sheet
+                self.present(alertController, animated: true, completion: nil)
                 
             case .refreshSideJITServer:
                 if #available(iOS 17, *) {
+                
                    let alertController = UIAlertController(
-                      title: NSLocalizedString("Are you sure to Refresh SideJITServer?", comment: ""),
-                      message: NSLocalizedString("if you do not have SideJITServer setup this will do nothing", comment: ""),
+                      title: NSLocalizedString("SideJITServer", comment: ""),
+                      message: NSLocalizedString("Settings for SideJITServer", comment: ""),
                       preferredStyle: UIAlertController.Style.actionSheet)
+                    
+                    
+                    if UserDefaults.standard.sidejitenable {
+                        alertController.addAction(UIAlertAction(title: NSLocalizedString("Disable", comment: ""), style: .default){ _ in
+                            UserDefaults.standard.sidejitenable = false
+                        })
+                    } else {
+                        alertController.addAction(UIAlertAction(title: NSLocalizedString("Enable", comment: ""), style: .default){ _ in
+                            UserDefaults.standard.sidejitenable = true
+                        })
+                    }
+                    
+                    alertController.addAction(UIAlertAction(title: NSLocalizedString("Server Address", comment: ""), style: .default){ _ in
+                        let alertController1 = UIAlertController(title: "SideJITServer Address", message: "Please Enter the SideJITServer Address Below. (this is not needed if SideJITServer has already been detected)", preferredStyle: .alert)
+                        
+
+                        alertController1.addTextField { textField in
+                            textField.placeholder = "SideJITServer Address"
+                        }
+                        
+                        
+                        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
+                        alertController1.addAction(cancelAction)
+                        
+
+                        let okAction = UIAlertAction(title: "OK", style: .default) { _ in
+                            if let text = alertController1.textFields?.first?.text {
+                                UserDefaults.standard.textInputSideJITServerurl = text
+                            }
+                        }
+                        
+                        alertController1.addAction(okAction)
+                        
+                        // Present the alert controller
+                        self.present(alertController1, animated: true)
+                    })
+                    
 
                    alertController.addAction(UIAlertAction(title: NSLocalizedString("Refresh", comment: ""), style: .destructive){ _ in
                       if UserDefaults.standard.sidejitenable {
@@ -624,7 +702,7 @@ extension SettingsViewController
                             SJSURL = "http://sidejitserver._http._tcp.local:8080"
                          } else {
                             SJSURL = UserDefaults.standard.textInputSideJITServerurl ?? ""
-                         }  // replace with your URL
+                         }
                         
                           
                          let url = URL(string: SJSURL + "/re/")!
@@ -640,8 +718,10 @@ extension SettingsViewController
                          task.resume()
                       }
                    })
+                    
 
-                   alertController.addAction(.cancel)
+                   let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
+                   alertController.addAction(cancelAction)
                    //Fix crash on iPad
                    alertController.popoverPresentationController?.sourceView = self.tableView
                    alertController.popoverPresentationController?.sourceRect = self.tableView.rectForRow(at: indexPath)
@@ -652,10 +732,6 @@ extension SettingsViewController
                       title: NSLocalizedString("You are not on iOS 17+ This will not work", comment: ""),
                       message: NSLocalizedString("This is meant for 'SideJITServer' and it only works on iOS 17+ ", comment: ""),
                       preferredStyle: UIAlertController.Style.actionSheet)
-
-                   alertController.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .destructive){ _ in
-                      print("Not on iOS 17")
-                   })
 
                    alertController.addAction(.cancel)
                    //Fix crash on iPad
@@ -669,8 +745,11 @@ extension SettingsViewController
             case .clearCache: self.clearCache()
                 
             case .resetPairingFile:
+                
                 let filename = "ALTPairingFile.mobiledevicepairing"
+                
                 let fm = FileManager.default
+                
                 let documentsPath = fm.documentsDirectory.appendingPathComponent("/\(filename)")
                 let alertController = UIAlertController(
                     title: NSLocalizedString("Are you sure to reset the pairing file?", comment: ""),
@@ -693,6 +772,7 @@ extension SettingsViewController
                 alertController.popoverPresentationController?.sourceRect = self.tableView.rectForRow(at: indexPath)
                 self.present(alertController, animated: true)
                 self.tableView.deselectRow(at: indexPath, animated: true)
+                
             case .anisetteServers:
                 self.prepare(for: UIStoryboardSegue(identifier: "anisetteServers", source: self, destination: UIHostingController(rootView: AnisetteServers(selected: "", errorCallback: {
                     ToastView(text: "Reset adi.pb", detailText: "Buh").show(in: self)

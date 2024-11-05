@@ -128,7 +128,7 @@ private extension PatreonViewController
         let isPatronText = NSLocalizedString("""
         Hey ,
         
-        You’re the best. Your account was linked successfully, so you now have access to the beta versions of all of our apps. You can find them all in the Browse tab.
+        You’re the best. Your account was linked successfully, so you now have access to any beta versions of our apps. You can find them all in the Browse tab.
         
         Thanks for all of your support. Enjoy!
         - SideTeam
@@ -175,7 +175,7 @@ private extension PatreonViewController
     
     @objc func openPatreonURL(_ sender: UIButton)
     {
-        let patreonURL = URL(string: "https://www.patreon.com/SideStore")!
+        let patreonURL = URL(string: "https://www.patreon.com/SideStoreIO")!
         
         let safariViewController = SFSafariViewController(url: patreonURL)
         safariViewController.preferredControlTintColor = self.view.tintColor

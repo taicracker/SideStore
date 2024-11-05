@@ -783,7 +783,7 @@ private extension MyAppsViewController
         }
         
         let unzipProgress = Progress.discreteProgress(totalUnitCount: 1)
-        let unzipAppOperation = BlockOperation {
+        let unzipAppOperation = BlockOperation { 
             do
             {
                 if let error = context.error
@@ -815,38 +815,7 @@ private extension MyAppsViewController
         {
             unzipAppOperation.addDependency(downloadOperation)
         }
-        
-        let removeAppExtensionsProgress = Progress.discreteProgress(totalUnitCount: 1)
-        let removeAppExtensionsOperation = RSTAsyncBlockOperation { [weak self] (operation) in
-            do
-            {
-                if let error = context.error
-                {
-                    throw error
-                }
                 
-                guard let application = context.application else { throw OperationError.invalidParameters }
-                
-                DispatchQueue.main.async {
-                    self?.removeAppExtensions(from: application) { (result) in
-                        switch result
-                        {
-                        case .success: removeAppExtensionsProgress.completedUnitCount = 1
-                        case .failure(let error): context.error = error
-                        }
-                        operation.finish()
-                    }
-                }
-            }
-            catch
-            {
-                context.error = error
-                operation.finish()
-            }
-        }
-        removeAppExtensionsOperation.addDependency(unzipAppOperation)
-        progress.addChild(removeAppExtensionsProgress, withPendingUnitCount: 5)
-        
         let installProgress = Progress.discreteProgress(totalUnitCount: 100)
         let installAppOperation = RSTAsyncBlockOperation { (operation) in
             do
@@ -901,15 +870,17 @@ private extension MyAppsViewController
                 }
             }
         }
+        
+        installAppOperation.addDependency(unzipAppOperation)
+        
         progress.addChild(installProgress, withPendingUnitCount: 65)
-        installAppOperation.addDependency(removeAppExtensionsOperation)
         
         self.sideloadingProgress = progress
         self.sideloadingProgressView.progress = 0
         self.sideloadingProgressView.isHidden = false
         self.sideloadingProgressView.observedProgress = self.sideloadingProgress
         
-        let operations = [downloadOperation, unzipAppOperation, removeAppExtensionsOperation, installAppOperation].compactMap { $0 }
+        let operations = [downloadOperation, unzipAppOperation, installAppOperation].compactMap { $0 }
         self.operationQueue.addOperations(operations, waitUntilFinished: false)
     }
     
@@ -957,49 +928,6 @@ private extension MyAppsViewController
         self.dataSource.cellConfigurationHandler(cell, installedApp, indexPath)
         
         cell.bannerView.iconImageView.isIndicatingActivity = false
-    }
-    
-    func removeAppExtensions(from application: ALTApplication, completion: @escaping (Result<Void, Error>) -> Void)
-    {
-        guard !application.appExtensions.isEmpty else { return completion(.success(())) }
-        
-        let firstSentence: String
-        
-        if UserDefaults.standard.activeAppLimitIncludesExtensions
-        {
-            firstSentence = NSLocalizedString("Non-developer Apple IDs are limited to 3 active apps and app extensions.", comment: "")
-        }
-        else
-        {
-            firstSentence = NSLocalizedString("Non-developer Apple IDs are limited to creating 10 App IDs per week.", comment: "")
-        }
-        
-        let message = firstSentence + " " + NSLocalizedString("Would you like to remove this app's extensions so they don't count towards your limit?", comment: "")
-        
-        let alertController = UIAlertController(title: NSLocalizedString("App Contains Extensions", comment: ""), message: message, preferredStyle: .alert)
-        alertController.addAction(UIAlertAction(title: UIAlertAction.cancel.title, style: UIAlertAction.cancel.style, handler: { (action) in
-            completion(.failure(OperationError.cancelled))
-        }))
-        alertController.addAction(UIAlertAction(title: NSLocalizedString("Keep App Extensions", comment: ""), style: .default) { (action) in
-            completion(.success(()))
-        })
-        alertController.addAction(UIAlertAction(title: NSLocalizedString("Remove App Extensions", comment: ""), style: .destructive) { (action) in
-            do
-            {
-                for appExtension in application.appExtensions
-                {
-                    try FileManager.default.removeItem(at: appExtension.fileURL)
-                }
-                
-                completion(.success(()))
-            }
-            catch
-            {
-                completion(.failure(error))
-            }
-        })
-        
-        self.present(alertController, animated: true, completion: nil)
     }
 }
 
@@ -1066,7 +994,7 @@ private extension MyAppsViewController
             }
         }
                 
-        if UserDefaults.standard.activeAppsLimit != nil, #available(iOS 13, *)
+        if !UserDefaults.standard.isAppLimitDisabled && UserDefaults.standard.activeAppsLimit != nil, #available(iOS 13, *)
         {
             // UserDefaults.standard.activeAppsLimit is only non-nil on iOS 13.3.1 or later, so the #available check is just so we can use Combine.
             
@@ -1156,7 +1084,7 @@ private extension MyAppsViewController
             message = NSLocalizedString("This will also erase all backup data for this app.", comment: "")
         }
 
-        let alertController = UIAlertController(title: title, message: message, preferredStyle: .actionSheet)
+        let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
         alertController.addAction(.cancel)
         alertController.addAction(UIAlertAction(title: NSLocalizedString("Remove", comment: ""), style: .destructive, handler: { (action) in
             AppManager.shared.remove(installedApp) { (result) in
@@ -1319,9 +1247,15 @@ private extension MyAppsViewController
     @available(iOS 14, *)
     func enableJIT(for installedApp: InstalledApp)
     {
-        guard minimuxerStatus else { return }
+        
+        let sidejitenabled = UserDefaults.standard.sidejitenable
+        
+        if #unavailable(iOS 17) {
+            guard minimuxerStatus else { return }
+        }
+        
 
-        if #available(iOS 17, *) {
+        if #available(iOS 17, *), !sidejitenabled {
             ToastView(error: (OperationError.tooNewError as NSError).withLocalizedTitle("No iOS 17 On Device JIT!"), opensLog: true).show(in: self)
             AppManager.shared.log(OperationError.tooNewError, operation: .enableJIT, app: installedApp)
             return
@@ -1420,7 +1354,7 @@ extension MyAppsViewController
                 headerView.layoutMargins.left = self.view.layoutMargins.left
                 headerView.layoutMargins.right = self.view.layoutMargins.right
                 
-                if UserDefaults.standard.activeAppsLimit == nil
+                if UserDefaults.standard.activeAppsLimit == nil || UserDefaults.standard.isAppLimitDisabled
                 {
                     headerView.textLabel.text = NSLocalizedString("Installed", comment: "")
                 }
@@ -1819,7 +1753,7 @@ extension MyAppsViewController: UICollectionViewDragDelegate
             return []
             
         case .activeApps, .inactiveApps:
-            guard UserDefaults.standard.activeAppsLimit != nil else { return [] }
+            guard UserDefaults.standard.activeAppsLimit != nil && !UserDefaults.standard.isAppLimitDisabled else { return [] }
             guard let cell = collectionView.cellForItem(at: indexPath as IndexPath) as? InstalledAppCollectionViewCell else { return [] }
             
             let item = self.dataSource.item(at: indexPath)
@@ -1874,6 +1808,7 @@ extension MyAppsViewController: UICollectionViewDropDelegate
     func collectionView(_ collectionView: UICollectionView, dropSessionDidUpdate session: UIDropSession, withDestinationIndexPath destinationIndexPath: IndexPath?) -> UICollectionViewDropProposal
     {
         guard
+            !UserDefaults.standard.isAppLimitDisabled,
             let activeAppsLimit = UserDefaults.standard.activeAppsLimit,
             let installedApp = session.items.first?.localObject as? InstalledApp
         else { return UICollectionViewDropProposal(operation: .cancel) }

@@ -23,157 +23,198 @@ struct Server: Codable {
     var address: String
 }
 
-struct AniServer: Codable {
-    var name: String
-    var url: URL
-}
-
 class AnisetteViewModel: ObservableObject {
     @Published var selected: String = ""
 
     @Published var source: String = "https://servers.sidestore.io/servers.json"
     @Published var servers: [Server] = []
     
+    init() {
+        // using the custom Anisette list
+        if !UserDefaults.standard.menuAnisetteList.isEmpty {
+            self.source = UserDefaults.standard.menuAnisetteList
+        }
+    }
+    
     func getListOfServers() {
-        URLSession.shared.dataTask(with: URL(string: source)!) { data, response, error in
+        guard let url = URL(string: source) else { return }
+        URLSession.shared.dataTask(with: url) { data, response, error in
             if let error = error {
                 return
             }
             if let data = data {
                 do {
-                    let servers = try Foundation.JSONDecoder().decode(AnisetteServerData.self, from: data)
+                    let decoder = Foundation.JSONDecoder()
+                    let servers = try decoder.decode(AnisetteServerData.self, from: data)
                     DispatchQueue.main.async {
-                        self.servers = servers.servers.map { Server(name: $0.name, address: $0.address) }
+                        self.servers = servers.servers
                     }
                 } catch {
-                    
+                    // Handle decoding error
+                    print("Failed to decode JSON: \(error)")
                 }
             }
-        }
-        .resume()
-        for server in servers {
-            print(server)
-            print(server.name.count)
-            print(server.name)
-        }
+        }.resume()
     }
-    
 }
 
 struct AnisetteServers: View {
     @Environment(\.presentationMode) var presentationMode
     @StateObject var viewModel: AnisetteViewModel = AnisetteViewModel()
     @State var selected: String? = nil
+    @State private var showingConfirmation = false
     var errorCallback: () -> ()
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color(UIColor(named: "SettingsBackground")!).ignoresSafeArea(.all)
-                    .onAppear {
-                        viewModel.getListOfServers()
-                    }
-                VStack {
-                    if #available(iOS 16.0, *) {
-                        SwiftUI.List($viewModel.servers, id: \.address, selection: $selected) { server in
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text("\(server.name.wrappedValue)")
-                                            .font(.headline)
-                                            .underline(true, color: .white)
-                                        Text("\(server.address.wrappedValue)")
-                                            .fontWeight(.thin)
-                                    }
-                                    if selected != nil {
-                                        if server.address.wrappedValue == selected {
-                                            Spacer()
-                                            Image(systemName: "checkmark")
-                                                .onAppear {
-                                                    UserDefaults.standard.menuAnisetteURL = server.address.wrappedValue
-                                                    print(UserDefaults.synchronize(.standard)())
-                                                    print(UserDefaults.standard.menuAnisetteURL)
-                                                    print(server.address.wrappedValue)
-                                                }
+        ZStack {
+            Color(UIColor.systemBackground)
+                .ignoresSafeArea()
+                .onAppear {
+                    viewModel.getListOfServers()
+                }
+            VStack {
+                if #available(iOS 16.0, *) {
+                    SwiftUI.List($viewModel.servers, id: \.address, selection: $selected) { server in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("\(server.name.wrappedValue)")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Text("\(server.address.wrappedValue)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            if selected != nil {
+                                if server.address.wrappedValue == selected {
+                                    Spacer()
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.accentColor)
+                                        .onAppear {
+                                            UserDefaults.standard.menuAnisetteURL = server.address.wrappedValue
+                                            print(UserDefaults.synchronize(.standard)())
+                                            print(UserDefaults.standard.menuAnisetteURL)
+                                            print(server.address.wrappedValue)
                                         }
-                                    }
                                 }
-                                .backgroundStyle((selected == nil) ? Color(UIColor(named: "SettingsHighlighted")!) : Color(UIColor(named: "SettingsBackground")!))
-                            .listRowSeparatorTint(.white)
-                            .listRowBackground((selected == nil) ? Color(UIColor(named: "SettingsHighlighted")!).ignoresSafeArea(.all) : Color(UIColor(named: "SettingsBackground")!).ignoresSafeArea(.all))
+                            }
                         }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
-                        .listRowBackground(Color(UIColor(named: "SettingsBackground")!).ignoresSafeArea(.all))
-                        
-                    } else {
-                        List(selection: $selected) {
-                            ForEach($viewModel.servers, id: \.name) { server in
-                                VStack {
-                                    HStack {
-                                        Text("\(server.name.wrappedValue)")
-                                            .foregroundColor(.white)
-                                            .frame(alignment: .center)
-                                        Text("\(server.address.wrappedValue)")
-                                            .foregroundColor(.white)
-                                            .frame(alignment: .center)
-                                    }
+                        .padding()
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color(UIColor.secondarySystemBackground)))
+                        .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 5)
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .listRowBackground(Color(UIColor.systemBackground))
+                } else {
+                    List(selection: $selected) {
+                        ForEach($viewModel.servers, id: \.name) { server in
+                            VStack {
+                                HStack {
+                                    Text("\(server.name.wrappedValue)")
+                                        .foregroundColor(.primary)
+                                        .frame(alignment: .center)
+                                    Text("\(server.address.wrappedValue)")
+                                        .foregroundColor(.secondary)
+                                        .frame(alignment: .center)
                                 }
+                            }
+                            Spacer()
+                        }
+                        .padding()
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color(UIColor.secondarySystemBackground)))
+                        .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 5)
+                    }
+                    .listStyle(.plain)
+                }
+                
+                VStack(spacing: 16) {
+                    TextField("Anisette Server List", text: $viewModel.source)
+                        .padding()
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color(UIColor.secondarySystemFill)))
+                        .foregroundColor(.primary)
+                        .frame(height: 60)
+                        .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 5)
+                        .onChange(of: viewModel.source) { newValue in
+                            UserDefaults.standard.menuAnisetteList = newValue
+                            viewModel.getListOfServers()
+                        }
+
+                    HStack(spacing: 16) {
+                        SUIButton(action: {
+                            presentationMode.wrappedValue.dismiss()
+                        }) {
+                            HStack{
+                                Spacer()
+                                Text("Back")
+                                    .fontWeight(.semibold)
                                 Spacer()
                             }
+                            .contentShape(Rectangle())
                         }
-                        .listStyle(.plain)
-                        // Fallback on earlier versions
-                    }
-                    if #available(iOS 15.0, *) {
-                        TextField("Anisette Server List", text: $viewModel.source)
-                            .padding(.leading, 5)
-                            .padding(.vertical, 10)
-                            .frame(alignment: .center)
-                            .textFieldStyle(.plain)
-                            .border(.white, width: 1)
-                            .onSubmit {
-                                UserDefaults.standard.menuAnisetteList = viewModel.source
-                                viewModel.getListOfServers()
-                            }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding()
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.accentColor))
+                        .foregroundColor(.white)
+                        .shadow(color: Color.accentColor.opacity(0.4), radius: 10, x: 0, y: 5)
+
                         SUIButton(action: {
                             viewModel.getListOfServers()
-                        }, label: {
-                            Text("Refresh Servers")
-                        })
-                        .padding(.bottom, 20)
-                        SUIButton(role: .destructive, action: {
-#if !DEBUG
-                            if Keychain.shared.adiPb != nil {
-                                Keychain.shared.adiPb = nil
+                        }) {
+                            HStack{
+                                Spacer()
+                                Text("Refresh Servers")
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity)
+                                Spacer()
                             }
-#endif
-                            print("Cleared adi.pb from keychain")
-                            errorCallback()
-                            self.presentationMode.wrappedValue.dismiss()
-                        }, label: {
-                            Text("Reset adi.pb")
-//                            if (selected != nil) {
-//                                Text("\(selected!.uuidString)")
-//                            }
-                        })
-                        .padding(.bottom, 20)
-                    } else {
-                        // Fallback on earlier versions
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding()
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.accentColor))
+                        .foregroundColor(.white)
+                        .shadow(color: Color.accentColor.opacity(0.4), radius: 10, x: 0, y: 5)
+                        
+                    }
+
+                    SUIButton(action: {
+                        showingConfirmation = true
+                    }) {
+                        Text("Reset adi.pb")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.red))
+                    .foregroundColor(.white)
+                    .shadow(color: Color.red.opacity(0.4), radius: 10, x: 0, y: 5)
+                    .alert(isPresented: $showingConfirmation) {
+                        Alert(
+                            title: Text("Reset adi.pb"),
+                            message: Text("are you sure to clear the adi.pb from keychain？"),
+                            primaryButton: .default(Text("do it")) {
+                                #if !DEBUG
+                                if Keychain.shared.adiPb != nil {
+                                    Keychain.shared.adiPb = nil
+                                }
+                                #endif
+                                print("Cleared adi.pb from keychain")
+                                errorCallback()
+                                presentationMode.wrappedValue.dismiss()
+                            },
+                            secondaryButton: .cancel(Text("cancel")) {
+                                print("canceled")
+                            }
+                        )
                     }
                 }
+                .padding(.horizontal)
+                .padding(.bottom)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationTitle("Anisette Servers")
-        .onAppear {
-            if UserDefaults.standard.menuAnisetteList != "" {
-                viewModel.source = UserDefaults.standard.menuAnisetteList
-            } else {
-                viewModel.source = "https://servers.sidestore.io/servers.json"
-            }
-            print(UserDefaults.standard.menuAnisetteURL)
-            print(UserDefaults.standard.menuAnisetteList)
-        }
+        .navigationBarHidden(true)
+        .navigationTitle("")
     }
 }
-
